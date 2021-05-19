@@ -66,7 +66,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	/* We would like to resync each 60 seconds */
-	//timePeriod := time.Second * 60
+	timePeriod := time.Second * 60
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -75,7 +75,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f8d39f40.training.redhat.com",
-		//SyncPeriod:             &timePeriod,
+		SyncPeriod:             &timePeriod,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
