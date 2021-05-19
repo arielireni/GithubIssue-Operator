@@ -1,0 +1,9 @@
+apiVersion: example.training.redhat.com/v1alpha1
+kind: GitHubIssue
+metadata:
+  name: my-github-issue5
+spec:
+  repo: arielireni/Issues-Example
+  title: gh issue example - check all together
+  description: create
+
