@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# Githubissue-Operator-Task
-=======
 # GithubIssue Operator Task
 ## Goal
 - Implement an operator that will allow creating, editing and closing a github issue.
