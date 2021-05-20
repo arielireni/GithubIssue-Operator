@@ -102,12 +102,6 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	body := ghIssue.Spec.Description
 	issueData := Issue{Title: title, Description: body}
 
-	/* Validation in the CRD level - an attempt to create a CRD with malformed 'repo' will fail */
-	splittedRepo := strings.Split(repo, "/")
-	if len(splittedRepo) != 2 {
-		return ctrl.Result{}, nil
-	}
-
 	apiURL := "https://api.github.com/repos/" + repo + "/issues"
 	token := os.Getenv("TOKEN")
 	detailsData := Details{ApiURL: apiURL, Token: token}
