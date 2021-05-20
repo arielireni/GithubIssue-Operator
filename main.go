@@ -19,10 +19,7 @@ package main
 import (
 	"flag"
 	"os"
-<<<<<<< HEAD
 	"time"
-=======
->>>>>>> 2344754eb238fc929f6c20c6e493910cf19d1071
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.

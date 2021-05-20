@@ -29,11 +29,8 @@ type GitHubIssueSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Repo represents a github repo url
-<<<<<<< HEAD
 	/* Validation in the CRD level - an attempt to create a CRD with malformed 'repo' will fail */
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9\_.-]+/[a-zA-Z0-9\_.-]+$
-=======
->>>>>>> 2344754eb238fc929f6c20c6e493910cf19d1071
 	Repo string `json:"repo"`
 
 	// Title represents the title of the issue
