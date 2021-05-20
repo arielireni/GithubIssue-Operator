@@ -1,17 +1,8 @@
 apiVersion: example.training.redhat.com/v1alpha1
 kind: GitHubIssue
 metadata:
-<<<<<<< HEAD
   name: github-issue-sample9
 spec:
   repo: arielireni/Issues-Example
   title: test - create with pointers and withour errors return
   description: create test works
-=======
-  name: my-github-issue5
-spec:
-  repo: arielireni/Issues-Example
-  title: gh issue example - check all together
-  description: create
-
->>>>>>> 2344754eb238fc929f6c20c6e493910cf19d1071
