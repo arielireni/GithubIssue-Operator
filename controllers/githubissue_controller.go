@@ -21,21 +21,20 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	examplev1alpha1 "github.com/arielireni/example-operator/api/v1alpha1"
-
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	examplev1alpha1 "github.com/arielireni/example-operator/api/v1alpha1"
+	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // GitHubIssueReconciler reconciles a GitHubIssue object
@@ -87,6 +86,7 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	/* Get the object from the api request */
 
 	ghIssue := examplev1alpha1.GitHubIssue{}
+
 	err := r.Client.Get(ctx, req.NamespacedName, &ghIssue) // fetch the k8s github object
 
 	if err != nil {
@@ -111,7 +111,7 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	body := ghIssue.Spec.Description
 	issueData := Issue{Title: title, Description: body}
 
-	apiURL := "https://api.github.com/repos/" + ghIssue.Spec.Repo + "/issues?state=all"
+	apiURL := "https://api.github.com/repos/" + ghIssue.Spec.Repo + "/issues"
 	token := os.Getenv("TOKEN")
 	detailsData := Details{ApiURL: apiURL, Token: token}
 
@@ -253,11 +253,12 @@ func createNewIssue(issueData *Issue, detailsData *Details) *Issue {
 
 /* Checks if the input issue exists. If yes, we will return issue, and nil otherwise */
 func isIssueExist(repoData *Repo, issueData *Issue, detailsData *Details) *Issue {
+	apiURL := detailsData.ApiURL + "?state=all"
 	/* API request for all repository's issues */
 	jsonData, _ := json.Marshal(&repoData)
 	// creating client to set custom headers for Authorization
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", detailsData.ApiURL, bytes.NewReader(jsonData))
+	req, _ := http.NewRequest("GET", apiURL, bytes.NewReader(jsonData))
 	req.Header.Set("Authorization", "token "+detailsData.Token)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -266,7 +267,7 @@ func isIssueExist(repoData *Repo, issueData *Issue, detailsData *Details) *Issue
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	// print body as it may contain hints in case of errors
-	fmt.Println(string(body))
+	//fmt.Println(string(body))
 
 	/* Create array with all repository's issues */
 	var allIssues []Issue
@@ -285,6 +286,7 @@ func isIssueExist(repoData *Repo, issueData *Issue, detailsData *Details) *Issue
 func editIssue(issueData *Issue, issue *Issue, detailsData *Details) {
 	issue.Description = issueData.Description
 	issueApiURL := detailsData.ApiURL + "/" + fmt.Sprint(issue.Number)
+	fmt.Printf("URL: " + issueApiURL)
 	jsonData, _ := json.Marshal(issue)
 
 	/* Now update */
@@ -305,3 +307,7 @@ func editIssue(issueData *Issue, issue *Issue, detailsData *Details) {
 		log.Fatal(err)
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// UNIT TESTING /////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////

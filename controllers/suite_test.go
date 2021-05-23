@@ -17,20 +17,26 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
+	examplev1alpha1 "github.com/arielireni/example-operator/api/v1alpha1"
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	examplev1alpha1 "github.com/arielireni/example-operator/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -78,3 +84,55 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+func TestGitHubIssueCreate(t *testing.T) {
+	var (
+		name      = "gh-issue-test-sample"
+		namespace = "default"
+	)
+	// A GitHub Issue object with metadata and spec.
+	ghIssue := &examplev1alpha1.GitHubIssue{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: examplev1alpha1.GitHubIssueSpec{
+			Repo:  "arielireni/Issues-Example",
+			Title: "test - with unit test",
+		},
+	}
+
+	// Objects to track in the fake client.
+	objs := []runtime.Object{ghIssue}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(examplev1alpha1.SchemeBuilder.GroupVersion, ghIssue)
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewFakeClient(objs...)
+
+	// Create a GitHubIssueReconciler object with the scheme and fake client.
+	ctx := context.TODO()
+	//log := logr.FromContextOrDiscard(ctx)
+	log := logr.Discard()
+	r := &GitHubIssueReconciler{cl, log, s}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	res, err := r.Reconcile(ctx, req)
+	if err != nil {
+		t.Fatalf("reconcile: (%v)", err)
+	}
+	// Check the result of reconciliation to make sure it has the desired state.
+	if !res.Requeue {
+		t.Error("reconcile did not requeue request as expected")
+	}
+
+}
