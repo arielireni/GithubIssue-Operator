@@ -2,7 +2,7 @@
 ## Goal
 - Implement an operator that will allow creating, editing and closing a github issue.
 
-## The Reconciliation behaviour
+## The Reconciliation Behaviour
 - Fetch the k8s github object by the req.NamespacedName.
 - Fetch all the github issues of the repository. 
 - Find one with the exact title we need.
