@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -85,7 +86,7 @@ var _ = AfterSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 })
 
-func TestGitHubIssueCreate(t *testing.T) {
+func TestGitHubIssueControllerDeploymentCreate(t *testing.T) {
 	var (
 		name      = "gh-issue-test-sample"
 		namespace = "default"
@@ -116,7 +117,8 @@ func TestGitHubIssueCreate(t *testing.T) {
 	ctx := context.TODO()
 	//log := logr.FromContextOrDiscard(ctx)
 	log := logr.Discard()
-	r := &GitHubIssueReconciler{cl, log, s}
+
+	r := &GitHubIssueReconciler{Client: cl, Log: log, Scheme: s}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -133,6 +135,12 @@ func TestGitHubIssueCreate(t *testing.T) {
 	// Check the result of reconciliation to make sure it has the desired state.
 	if !res.Requeue {
 		t.Error("reconcile did not requeue request as expected")
+	}
+	// Check if deployment has been created and has the correct size.
+	dep := &appsv1.Deployment{}
+	err = r.Client.Get(context.TODO(), req.NamespacedName, dep)
+	if err != nil {
+		t.Fatalf("get deployment: (%v)", err)
 	}
 
 }
