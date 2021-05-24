@@ -157,7 +157,7 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		issue = createNewIssue(&issueData, &detailsData)
 	} else {
 		//editIssue(issueData, detailsData, allIssues, index)
-		if issueData.Description != issue.Description {
+		if (issueData.Description != issue.Description) && (issue.State != "closed") {
 			editIssue(&issueData, issue, &detailsData)
 		}
 	}

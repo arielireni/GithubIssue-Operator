@@ -1,8 +1,8 @@
 apiVersion: example.training.redhat.com/v1alpha1
 kind: GitHubIssue
 metadata:
-  name: github-issue-sample1
+  name: github-issue-sample2
 spec:
   repo: arielireni/Issues-Example
-  title: test - with unit test
-  description:
+  title: check edit of closed issue
+  description: trying to edit a closed issue
