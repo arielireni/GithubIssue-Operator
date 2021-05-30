@@ -45,13 +45,13 @@ type GitHubIssueReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-/* Repo structure declaration - all data fields for getting a repo's issues list */
+// Repo structure declaration - all data fields for getting a repo's issues list
 type Repo struct {
 	Owner string `json:"owner"`
 	Repo  string `json:"repo"`
 }
 
-/* Issue structure declaration - all data fields for a new github issue submission */
+// Issue structure declaration - all data fields for a new github issue submission
 type Issue struct {
 	Title               string `json:"title"`
 	Description         string `json:"body"`
@@ -60,10 +60,16 @@ type Issue struct {
 	LastUpdateTimestamp string `json:"updated_at,omitempty"`
 }
 
-/* Details structure declaration - all owner's details */
+// Details structure declaration - all owner's details
 type Details struct {
 	ApiURL string
 	Token  string
+}
+
+// Error structure decleration - errors with messages
+type Error struct {
+	ErrorCode error
+	Message   string
 }
 
 //+kubebuilder:rbac:groups=example.training.redhat.com,resources=githubissues,verbs=get;list;watch;create;update;patch;delete
@@ -84,88 +90,48 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	log := r.Log.WithValues("name-of-gh-issue", req.NamespacedName)
 	log.Info("Performs Reconcilation")
 
-	/* Get the object from the api request */
-
+	// Get the object from the api request
 	ghIssue := examplev1alpha1.GitHubIssue{}
-
-	err := r.Client.Get(ctx, req.NamespacedName, &ghIssue) // fetch the k8s github object
+	err := r.Client.Get(ctx, req.NamespacedName, &ghIssue) // Fetch the k8s github object
 
 	if err != nil {
-		/* Check if we got NotExist (404) error */
+		// Check if we got NotExist (404) error
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		/* Any other error */
+		// Any other error
 		return ctrl.Result{}, err
 	}
 
 	log.Info("got the gh issue from api server", "gh-issue", ghIssue)
 
-	/* Create a github request and create github issues by interacting with github api */
+	// Create a github request and create github issues by interacting with github api
+	repoData, issueData, detailsData := initDataStructs(ghIssue.Spec.Repo, ghIssue.Spec.Title, ghIssue.Spec.Description)
+	issue, returnErr := findIssue(&repoData, &issueData, &detailsData)
 
-	splittedRepo := strings.Split(ghIssue.Spec.Repo, "/")
-	owner := splittedRepo[1]
-	repo := splittedRepo[0]
-	repoData := Repo{Owner: owner, Repo: repo}
-
-	title := ghIssue.Spec.Title
-	body := ghIssue.Spec.Description
-	issueData := Issue{Title: title, Description: body}
-
-	apiURL := "https://api.github.com/repos/" + ghIssue.Spec.Repo + "/issues"
-	token := os.Getenv("TOKEN")
-	detailsData := Details{ApiURL: apiURL, Token: token}
-
-	issue := isIssueExist(&repoData, &issueData, &detailsData)
-
-	/* Implementation of deletion behaviour */
-	finalizerName := "example.training.redhat.com/finalizer"
-	// examine DeletionTimestamp to determine if object is under deletion
-	if ghIssue.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, so if it does not have our finalizer,
-		// then lets add the finalizer and update the object. This is equivalent
-		// registering our finalizer.
-		if !containsString(ghIssue.GetFinalizers(), finalizerName) {
-			controllerutil.AddFinalizer(&ghIssue, finalizerName)
-			if err := r.Update(ctx, &ghIssue); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-	} else {
-		// The object is being deleted
-		if containsString(ghIssue.GetFinalizers(), finalizerName) {
-			// our finalizer is present, so lets handle any external dependency
-			if issue != nil {
-				if err := r.deleteExternalResources(&issueData, issue, &detailsData); err != nil {
-					// if fail to delete the external dependency here, return with error
-					// so that it can be retried
-					return ctrl.Result{}, err
-				}
-			}
-
-			// remove our finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(&ghIssue, finalizerName)
-			if err := r.Update(ctx, &ghIssue); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-
-		// Stop reconciliation as the item is being deleted
-		return ctrl.Result{}, nil
+	// If we encounter an error we will warn about it and continue running
+	if returnErr != nil {
+		log.Info("Got error while finding issue")
 	}
 
+	// Deletion behavior
+	stopRec, delErr := delete(r, &ghIssue, ctx, issue, &issueData, &detailsData)
+	if stopRec == true {
+		return ctrl.Result{}, delErr
+	}
+
+	// Create new issue or update if needed
 	if issue == nil {
 		issue = createNewIssue(&issueData, &detailsData)
 	} else {
-		//editIssue(issueData, detailsData, allIssues, index)
 		if (issueData.Description != issue.Description) && (issue.State != "closed") {
 			editIssue(&issueData, issue, &detailsData)
 		}
 	}
 
-	/* Update the state of the issue instance by the real github issue state */
+	// Update the state of the issue instance by the real github issue state
 
-	/* Update the k8s status with the real github issue state */
+	// Update the k8s status with the real github issue state
 	patch := client.MergeFrom(ghIssue.DeepCopy())
 
 	ghIssue.Status.State = issue.State
@@ -187,14 +153,69 @@ func (r *GitHubIssueReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-/* Functions to handle deletion with finalizer */
+// Initialize issueData & detailsData
+func initDataStructs(repo, title, body string) (Repo, Issue, Details) {
+	splittedRepo := strings.Split(repo, "/")
+	owner := splittedRepo[1]
+	repoName := splittedRepo[0]
+	repoData := Repo{Owner: owner, Repo: repoName}
+
+	issueData := Issue{Title: title, Description: body}
+
+	apiURL := "https://api.github.com/repos/" + repo + "/issues"
+	token := os.Getenv("TOKEN")
+	detailsData := Details{ApiURL: apiURL, Token: token}
+
+	return repoData, issueData, detailsData
+}
+
+// Implementation of deletion behavior, will return true if we need to stop reconcilation
+func delete(r *GitHubIssueReconciler, ghIssue *examplev1alpha1.GitHubIssue, ctx context.Context, issue *Issue, issueData *Issue, detailsData *Details) (bool, error) {
+	finalizerName := "example.training.redhat.com/finalizer"
+	// examine DeletionTimestamp to determine if object is under deletion
+	if ghIssue.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !containsString(ghIssue.GetFinalizers(), finalizerName) {
+			controllerutil.AddFinalizer(ghIssue, finalizerName)
+			if err := r.Update(ctx, ghIssue); err != nil {
+				return true, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if containsString(ghIssue.GetFinalizers(), finalizerName) {
+			// our finalizer is present, so lets handle any external dependency
+			if issue != nil {
+				if err := r.deleteExternalResources(issueData, issue, detailsData); err != nil {
+					// if fail to delete the external dependency here, return with error
+					// so that it can be retried
+					return true, err
+				}
+			}
+
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(ghIssue, finalizerName)
+			if err := r.Update(ctx, ghIssue); err != nil {
+				return true, err
+			}
+		}
+
+		// Stop reconciliation as the item is being deleted
+		return true, nil
+	}
+	return false, nil
+}
+
+// Functions to handle deletion with finalizer
 func (r *GitHubIssueReconciler) deleteExternalResources(issueData *Issue, issue *Issue, detailsData *Details) error {
 
 	issueApiURL := detailsData.ApiURL + "/" + fmt.Sprint(issue.Number)
 	issue.State = "closed"
 	jsonData, _ := json.Marshal(issue)
 
-	/* Now update */
+	// Now update
 	client := &http.Client{}
 	req, _ := http.NewRequest("PATCH", issueApiURL, bytes.NewReader(jsonData))
 	req.Header.Set("Authorization", "token "+detailsData.Token)
@@ -223,7 +244,7 @@ func containsString(slice []string, s string) bool {
 	return false
 }
 
-/* Creates new issue with issueData's fields */
+// Creates new issue with issueData's fields
 func createNewIssue(issueData *Issue, detailsData *Details) *Issue {
 	apiURL := detailsData.ApiURL
 	// make it json
@@ -255,8 +276,8 @@ func createNewIssue(issueData *Issue, detailsData *Details) *Issue {
 	return issue
 }
 
-/* Checks if the input issue exists. If yes, we will return issue, and nil otherwise */
-func isIssueExist(repoData *Repo, issueData *Issue, detailsData *Details) *Issue {
+// Checks if the input issue exists. If yes, we will return issue, and nil otherwise
+func findIssue(repoData *Repo, issueData *Issue, detailsData *Details) (*Issue, *Error) {
 	apiURL := detailsData.ApiURL + "?state=all"
 	/* API request for all repository's issues */
 	jsonData, _ := json.Marshal(&repoData)
@@ -266,34 +287,40 @@ func isIssueExist(repoData *Repo, issueData *Issue, detailsData *Details) *Issue
 	req.Header.Set("Authorization", "token "+detailsData.Token)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		typedErr := Error{ErrorCode: err, Message: "GET request from GitHub API faild"}
+		return nil, &typedErr
 	}
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	// print body as it may contain hints in case of errors
-	//fmt.Println(string(body))
+	fmt.Println(string(body))
 
-	/* Create array with all repository's issues */
+	// Create array with all repository's issues
 	var allIssues []Issue
-	err = json.Unmarshal(body, &allIssues)
 
-	/* If the issue exists, return it. Otherwise, return nil */
+	err = json.Unmarshal(body, &allIssues)
+	if err != nil {
+		typedErr := Error{ErrorCode: err, Message: "Unmarshal faild"}
+		return nil, &typedErr
+	}
+
+	// If we found the issue, we'll return it. Otherwise, return nil
 	for _, issue := range allIssues {
 		if issue.Title == issueData.Title {
-			return &issue
+			return &issue, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
-/* Edits issue's description, to be equal to issueData's description */
+// Edits issue's description, to be equal to issueData's description
 func editIssue(issueData *Issue, issue *Issue, detailsData *Details) {
 	issue.Description = issueData.Description
 	issueApiURL := detailsData.ApiURL + "/" + fmt.Sprint(issue.Number)
 	fmt.Printf("URL: " + issueApiURL)
 	jsonData, _ := json.Marshal(issue)
 
-	/* Now update */
+	// Now update
 	client := &http.Client{}
 	req, _ := http.NewRequest("PATCH", issueApiURL, bytes.NewReader(jsonData))
 	req.Header.Set("Authorization", "token "+detailsData.Token)
