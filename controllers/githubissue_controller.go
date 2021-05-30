@@ -110,22 +110,28 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	issue, returnErr := findIssue(&repoData, &issueData, &detailsData)
 
 	// If we encounter an error we will warn about it and continue running
-	if returnErr != nil {
-		log.Info("Got error while finding issue")
+	if returnErr.ErrorCode != nil {
+		log.Info(returnErr.Message)
 	}
 
 	// Deletion behavior
-	stopRec, delErr := delete(r, &ghIssue, ctx, issue, &issueData, &detailsData)
-	if stopRec == true {
+	stopReconcile, delErr := delete(r, &ghIssue, ctx, issue, &issueData, &detailsData)
+	if stopReconcile == true {
 		return ctrl.Result{}, delErr
 	}
 
 	// Create new issue or update if needed
 	if issue == nil {
-		issue = createNewIssue(&issueData, &detailsData)
+		issue, returnErr = createNewIssue(&issueData, &detailsData)
+		if returnErr.ErrorCode != nil {
+			log.Info(returnErr.Message)
+		}
 	} else {
 		if (issueData.Description != issue.Description) && (issue.State != "closed") {
-			editIssue(&issueData, issue, &detailsData)
+			returnErr = editIssue(&issueData, issue, &detailsData)
+			if returnErr.ErrorCode != nil {
+				log.Info(returnErr.Message)
+			}
 		}
 	}
 
@@ -245,7 +251,7 @@ func containsString(slice []string, s string) bool {
 }
 
 // Creates new issue with issueData's fields
-func createNewIssue(issueData *Issue, detailsData *Details) *Issue {
+func createNewIssue(issueData *Issue, detailsData *Details) (*Issue, *Error) {
 	apiURL := detailsData.ApiURL
 	// make it json
 	jsonData, _ := json.Marshal(issueData)
@@ -255,8 +261,10 @@ func createNewIssue(issueData *Issue, detailsData *Details) *Issue {
 	req.Header.Set("Authorization", "token "+detailsData.Token)
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("fatal error")
-		log.Fatal(err)
+		//fmt.Printf("fatal error")
+		//log.Fatal(err)
+		returnErr := Error{ErrorCode: err, Message: "POST request from GitHub API faild"}
+		return nil, &returnErr
 	}
 	defer resp.Body.Close()
 
@@ -268,12 +276,15 @@ func createNewIssue(issueData *Issue, detailsData *Details) *Issue {
 		// print body as it may contain hints in case of errors
 		fmt.Println(string(body))
 
-		log.Fatal(err)
+		//log.Fatal(err)
+		returnErr := Error{ErrorCode: err, Message: "Creating GitHub issue faild"}
+		return nil, &returnErr
 	}
+
 	var issue *Issue
 	issueBody, _ := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(issueBody, &issue)
-	return issue
+	return issue, nil
 }
 
 // Checks if the input issue exists. If yes, we will return issue, and nil otherwise
@@ -314,7 +325,7 @@ func findIssue(repoData *Repo, issueData *Issue, detailsData *Details) (*Issue, 
 }
 
 // Edits issue's description, to be equal to issueData's description
-func editIssue(issueData *Issue, issue *Issue, detailsData *Details) {
+func editIssue(issueData *Issue, issue *Issue, detailsData *Details) *Error {
 	issue.Description = issueData.Description
 	issueApiURL := detailsData.ApiURL + "/" + fmt.Sprint(issue.Number)
 	fmt.Printf("URL: " + issueApiURL)
@@ -326,7 +337,8 @@ func editIssue(issueData *Issue, issue *Issue, detailsData *Details) {
 	req.Header.Set("Authorization", "token "+detailsData.Token)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return &Error{ErrorCode: err, Message: "PATCH request from GitHub API faild"}
+		//log.Fatal(err)
 	}
 	defer resp.Body.Close()
 
@@ -335,6 +347,8 @@ func editIssue(issueData *Issue, issue *Issue, detailsData *Details) {
 		body, _ := ioutil.ReadAll(resp.Body)
 		// print body as it may contain hints in case of errors
 		fmt.Println(string(body))
-		log.Fatal(err)
+		//log.Fatal(err)
+		return &Error{ErrorCode: err, Message: "Editing GitHub issue faild"}
 	}
+	return nil
 }

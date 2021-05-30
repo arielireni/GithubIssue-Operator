@@ -17,27 +17,19 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
 	examplev1alpha1 "github.com/arielireni/example-operator/api/v1alpha1"
-	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -86,7 +78,7 @@ var _ = AfterSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 })
 
-func TestGitHubIssueControllerDeploymentCreate(t *testing.T) {
+/*func TestGitHubIssueControllerDeploymentCreate(t *testing.T) {
 	var (
 		name      = "gh-issue-test-sample"
 		namespace = "default"
@@ -143,4 +135,4 @@ func TestGitHubIssueControllerDeploymentCreate(t *testing.T) {
 		t.Fatalf("get deployment: (%v)", err)
 	}
 
-}
+}*/
