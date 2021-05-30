@@ -30,6 +30,7 @@ import (
 
 	examplev1alpha1 "github.com/arielireni/example-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
+	gerrors "github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -241,8 +242,11 @@ func createNewIssue(issueData *Issue, detailsData *Details) *Issue {
 	if resp.StatusCode != http.StatusCreated {
 		fmt.Printf("Response code is is %d\n", resp.StatusCode)
 		body, _ := ioutil.ReadAll(resp.Body)
+		// added at code review session
+		gerrors.Wrap(err, "faild to create gh issue")
 		// print body as it may contain hints in case of errors
 		fmt.Println(string(body))
+
 		log.Fatal(err)
 	}
 	var issue *Issue
@@ -307,7 +311,3 @@ func editIssue(issueData *Issue, issue *Issue, detailsData *Details) {
 		log.Fatal(err)
 	}
 }
-
-////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// UNIT TESTING /////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
