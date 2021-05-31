@@ -28,7 +28,7 @@ type GitHubIssueSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Repo represents a github repo url
+	// Repo represents a clients repo url
 	/* Validation in the CRD level - an attempt to create a CRD with malformed 'repo' will fail */
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9\_.-]+/[a-zA-Z0-9\_.-]+$
 	Repo string `json:"repo"`
@@ -45,7 +45,7 @@ type GitHubIssueStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// State represents the state of the real github issue
+	// State represents the state of the real clients issue
 	State string `json:"state,omitempty"`
 
 	// LastUpdateTimestamp represents a timestamp of the last time the state was updated

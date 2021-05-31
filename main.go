@@ -18,6 +18,8 @@ package main
 
 import (
 	"flag"
+	"github.com/arielireni/example-operator/controllers"
+	"github.com/arielireni/example-operator/controllers/clients"
 	"os"
 	"time"
 
@@ -32,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	examplev1alpha1 "github.com/arielireni/example-operator/api/v1alpha1"
-	"github.com/arielireni/example-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -83,9 +84,10 @@ func main() {
 	}
 
 	if err = (&controllers.GitHubIssueReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("GitHubIssue"),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("GitHubIssue"),
+		Scheme:      mgr.GetScheme(),
+		ClientFrame: &clients.GithubClient{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitHubIssue")
 		os.Exit(1)

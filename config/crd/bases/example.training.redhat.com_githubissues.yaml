@@ -40,7 +40,7 @@ spec:
                 description: Body represents the description of the issue
                 type: string
               repo:
-                description: Repo represents a github repo url  Validation in the
+                description: Repo represents a clients repo url  Validation in the
                   CRD level - an attempt to create a CRD with malformed 'repo' will
                   fail
                 pattern: ^[a-zA-Z0-9\_.-]+/[a-zA-Z0-9\_.-]+$
@@ -56,7 +56,7 @@ spec:
             description: GitHubIssueStatus defines the observed state of GitHubIssue
             properties:
               state:
-                description: State represents the state of the real github issue
+                description: State represents the state of the real clients issue
                 type: string
               updated_at:
                 description: LastUpdateTimestamp represents a timestamp of the last
