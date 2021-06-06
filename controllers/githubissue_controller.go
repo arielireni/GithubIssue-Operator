@@ -18,9 +18,8 @@ package controllers
 
 import (
 	"context"
-	"github.com/arielireni/example-operator/controllers/clients"
-
 	examplev1alpha1 "github.com/arielireni/example-operator/api/v1alpha1"
+	"github.com/arielireni/example-operator/controllers/clients"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,6 +67,9 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
+	realClient := clients.NewGithubClient(ghIssue.Spec.Repo)
+	r.ClientFrame = &realClient
+
 	log.Info("got the gh issue from api server", "gh-issue", ghIssue)
 
 	// Create a clients request and create clients issues by interacting with clients api
@@ -77,26 +79,25 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// If we encounter an error we will warn about it and continue running
 	if returnErr.ErrorCode != nil {
 		log.Info(returnErr.Message)
-	}
-
-	// Deletion behavior
-	stopReconcile, delErr := r.delete(&ghIssue, ctx, issue, issueData, detailsData)
-	if stopReconcile == true {
-		return ctrl.Result{}, delErr
-	}
-
-	// Create new issue or update if needed
-	if issue == nil {
-		issue, returnErr = r.ClientFrame.CreateIssue(issueData, detailsData)
-		if returnErr.ErrorCode != nil {
-			log.Info(returnErr.Message)
-		}
 	} else {
-		if (issueData.Description != issue.Description) && (issue.State != "closed") {
-			returnErr = r.ClientFrame.EditIssue(issueData, issue, detailsData)
+		// Create new issue or update if needed
+		if issue == nil {
+			issue, returnErr = r.ClientFrame.CreateIssue(issueData, detailsData)
 			if returnErr.ErrorCode != nil {
 				log.Info(returnErr.Message)
 			}
+		} else {
+			if (issueData.Description != issue.Description) && (issue.State != "closed") {
+				returnErr = r.ClientFrame.EditIssue(issueData, issue, detailsData)
+				if returnErr.ErrorCode != nil {
+					log.Info(returnErr.Message)
+				}
+			}
+		}
+		// Deletion behavior
+		stopReconcile, delErr := r.DeletionBehavior(&ghIssue, ctx, issueData, issue, detailsData)
+		if stopReconcile == true {
+			return ctrl.Result{}, delErr
 		}
 	}
 
@@ -124,8 +125,8 @@ func (r *GitHubIssueReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Implementation of deletion behavior, will return true if we need to stop reconcilation
-func (r *GitHubIssueReconciler) delete(ghIssue *examplev1alpha1.GitHubIssue, ctx context.Context, issue *clients.Issue, issueData *clients.Issue, detailsData *clients.Details) (bool, error) {
+// DeletionBehavior implement recommended deletion behavior, and will return true if we need to stop reconcilation
+func (r *GitHubIssueReconciler) DeletionBehavior(ghIssue *examplev1alpha1.GitHubIssue, ctx context.Context, issueData *clients.Issue, issue *clients.Issue, detailsData *clients.Details) (bool, error) {
 	finalizerName := "example.training.redhat.com/finalizer"
 	// examine DeletionTimestamp to determine if object is under deletion
 	if ghIssue.ObjectMeta.DeletionTimestamp.IsZero() {

@@ -5,7 +5,7 @@ type ClientFrame interface {
 	FindIssue(repoData *Repo, issueData *Issue, detailsData *Details) (*Issue, *Error)
 	CreateIssue(issueData *Issue, detailsData *Details) (*Issue, *Error)
 	EditIssue(issueData *Issue, issue *Issue, detailsData *Details) *Error
-	CloseIssue(issue *Issue, issueData *Issue, detailsData *Details) *Error
+	CloseIssue(issueData *Issue, issue *Issue, detailsData *Details) *Error
 }
 
 // Repo structure declaration - all data fields for getting a repo's issues list
