@@ -67,30 +67,30 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	realClient := clients.NewGithubClient(ghIssue.Spec.Repo)
-	r.ClientFrame = &realClient
-
 	log.Info("got the gh issue from api server", "gh-issue", ghIssue)
 
-	// Create a clients request and create clients issues by interacting with clients api
+	// Create a github request and create github issues by interacting with the github api
 	repoData, issueData, detailsData := r.ClientFrame.InitDataStructs(ghIssue.Spec.Repo, ghIssue.Spec.Title, ghIssue.Spec.Description)
 	issue, returnErr := r.ClientFrame.FindIssue(repoData, issueData, detailsData)
 
-	// If we encounter an error we will warn about it and continue running
 	if returnErr.ErrorCode != nil {
 		log.Info(returnErr.Message)
+		return ctrl.Result{}, returnErr.ErrorCode
 	} else {
 		// Create new issue or update if needed
 		if issue == nil {
 			issue, returnErr = r.ClientFrame.CreateIssue(issueData, detailsData)
 			if returnErr.ErrorCode != nil {
 				log.Info(returnErr.Message)
+				log.Info("tried to create issue but got an error")
+				return ctrl.Result{}, returnErr.ErrorCode
 			}
 		} else {
 			if (issueData.Description != issue.Description) && (issue.State != "closed") {
 				returnErr = r.ClientFrame.EditIssue(issueData, issue, detailsData)
 				if returnErr.ErrorCode != nil {
 					log.Info(returnErr.Message)
+					return ctrl.Result{}, returnErr.ErrorCode
 				}
 			}
 		}
@@ -105,9 +105,10 @@ func (r *GitHubIssueReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Update the k8s status with the real clients issue state
 	patch := client.MergeFrom(ghIssue.DeepCopy())
-
-	ghIssue.Status.State = issue.State
-	ghIssue.Status.LastUpdateTimestamp = issue.LastUpdateTimestamp
+	if issue != nil {
+		ghIssue.Status.State = issue.State
+		ghIssue.Status.LastUpdateTimestamp = issue.LastUpdateTimestamp
+	}
 
 	err = r.Client.Status().Patch(ctx, &ghIssue, patch)
 

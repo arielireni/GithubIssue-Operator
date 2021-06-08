@@ -66,7 +66,7 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	/* We would like to resync each 60 seconds */
+	// We would like to rsync each 60 seconds
 	timePeriod := time.Second * 60
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -82,12 +82,11 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
 	if err = (&controllers.GitHubIssueReconciler{
 		Client:      mgr.GetClient(),
 		Log:         ctrl.Log.WithName("controllers").WithName("GitHubIssue"),
 		Scheme:      mgr.GetScheme(),
-		ClientFrame: &clients.GithubClient{},
+		ClientFrame: clients.NewGithubClient(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitHubIssue")
 		os.Exit(1)

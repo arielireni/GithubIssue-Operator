@@ -4,5 +4,5 @@ metadata:
   name: clients-issue-sample2
 spec:
   repo: arielireni/Issues-Example
-  title: test GitHubClient implemetation
-  description: test edit 
+  title: test newGitHubClient() imp
+  description: with edit

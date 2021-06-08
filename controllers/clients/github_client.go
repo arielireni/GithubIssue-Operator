@@ -14,19 +14,20 @@ import (
 
 type GithubClient struct {
 	HttpClient http.Client
-	Token      string
-	RepoURL    string
+	//Token      string
 }
 
 // InitDataStructs initializes issueData & detailsData
 func (g *GithubClient) InitDataStructs(repo, title, body string) (*Repo, *Issue, *Details) {
-	splitRepo := strings.Split(repo, "/")
 	// Init Repo data
+	splitRepo := strings.Split(repo, "/")
 	owner := splitRepo[1]
 	repoName := splitRepo[0]
 	repoData := Repo{Owner: owner, Repo: repoName}
+
 	// Init Issue data
 	issueData := Issue{Title: title, Description: body}
+
 	// Init Details data
 	apiURL := "https://api.github.com/repos/" + repo + "/issues"
 	token := os.Getenv("TOKEN")
@@ -46,7 +47,7 @@ func (g *GithubClient) FindIssue(repoData *Repo, issueData *Issue, detailsData *
 	resp, err := client.Do(req)
 	returnErr := Error{}
 	if err != nil {
-		returnErr = Error{ErrorCode: err, Message: "GET request from GitHub API failed"}
+		returnErr = Error{ErrorCode: err, Message: "GET request from GitHub API failed with error: \n" + err.Error()}
 		return nil, &returnErr
 	}
 	defer resp.Body.Close()
@@ -55,7 +56,8 @@ func (g *GithubClient) FindIssue(repoData *Repo, issueData *Issue, detailsData *
 	var allIssues []Issue
 	err = json.Unmarshal(body, &allIssues)
 	if err != nil {
-		returnErr = Error{ErrorCode: err, Message: "Unmarshal failed"}
+		fmt.Println(string(body))
+		returnErr = Error{ErrorCode: err, Message: "Unmarshal failed with response: \n" + string(body)}
 		return nil, &returnErr
 	}
 	// If we found the issue, we will return it. Otherwise, return nil
@@ -78,13 +80,13 @@ func (g *GithubClient) CreateIssue(issueData *Issue, detailsData *Details) (*Iss
 	resp, err := client.Do(req)
 	returnErr := Error{}
 	if err != nil {
-		returnErr = Error{ErrorCode: err, Message: "POST request from GitHub API failed"}
+		returnErr = Error{ErrorCode: err, Message: "POST request from GitHub API failed with error: \n" + err.Error()}
 		return nil, &returnErr
 	}
 	defer resp.Body.Close()
-
+	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
-		returnErr = Error{ErrorCode: err, Message: "Creating GitHub issue failed"}
+		returnErr = Error{ErrorCode: err, Message: "Creating GitHub issue failed with response: \n" + string(body)}
 		return nil, &returnErr
 	}
 	var issue *Issue
@@ -104,13 +106,13 @@ func (g *GithubClient) EditIssue(issueData *Issue, issue *Issue, detailsData *De
 	resp, err := client.Do(req)
 	returnErr := Error{}
 	if err != nil {
-		returnErr = Error{ErrorCode: err, Message: "PATCH request from GitHub API failed"}
+		returnErr = Error{ErrorCode: err, Message: "PATCH request from GitHub API failed with error: \n" + err.Error()}
 		return &returnErr
 	}
 	defer resp.Body.Close()
-
+	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		returnErr = Error{ErrorCode: err, Message: "Editing GitHub issue failed"}
+		returnErr = Error{ErrorCode: err, Message: "Editing GitHub issue failed with response: \n" + string(body)}
 		return &returnErr
 	}
 	return &returnErr
@@ -127,22 +129,21 @@ func (g *GithubClient) CloseIssue(issueData *Issue, issue *Issue, detailsData *D
 	resp, err := client.Do(req)
 	returnErr := Error{}
 	if err != nil {
-		returnErr = Error{ErrorCode: err, Message: "PATCH request from GitHub API failed"}
+		returnErr = Error{ErrorCode: err, Message: "PATCH request from GitHub API failed with error: \n" + err.Error()}
 		return &returnErr
 	}
 	defer resp.Body.Close()
-
+	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		returnErr = Error{ErrorCode: err, Message: "Closing GitHub issue failed"}
+		returnErr = Error{ErrorCode: err, Message: "Closing GitHub issue failed with error: \n" + string(body)}
 		return &returnErr
 	}
 	return &returnErr
 }
 
-func NewGithubClient(repoURL string) GithubClient {
-	return GithubClient{
+func NewGithubClient() *GithubClient {
+	return &GithubClient{
 		HttpClient: http.Client{},
-		Token:      os.Getenv("TOKEN"),
-		RepoURL:    repoURL,
+		//Token:      os.Getenv("TOKEN"),
 	}
 }

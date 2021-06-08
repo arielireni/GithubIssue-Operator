@@ -29,7 +29,7 @@ type GitHubIssueSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Repo represents a clients repo url
-	/* Validation in the CRD level - an attempt to create a CRD with malformed 'repo' will fail */
+	// Validation in the CRD level - an attempt to create a CRD with malformed 'repo' will fail
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9\_.-]+/[a-zA-Z0-9\_.-]+$
 	Repo string `json:"repo"`
 
