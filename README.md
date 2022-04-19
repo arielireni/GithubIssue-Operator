@@ -1,4 +1,6 @@
-# GithubIssue Operator Task
+# Github Issue Operator Task
+This task was part of my onboarding at Red Hat.
+
 ## Goal
 - Implement an operator that will allow creating, editing and closing a github issue.
 
